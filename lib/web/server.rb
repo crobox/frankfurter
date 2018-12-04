@@ -2,8 +2,11 @@
 
 require 'oj'
 require 'rack/cors'
+require 'redcarpet'
+require 'sass/plugin/rack'
 require 'sinatra'
 
+require 'currency_names'
 require 'query'
 require 'quote'
 
@@ -14,11 +17,12 @@ use Rack::Cors do
   end
 end
 
+css_location = File.join(Sinatra::Application.public_folder, 'stylesheets')
+Sass::Plugin.options.update css_location: css_location,
+                            style: :compressed
+use Sass::Plugin::Rack
+
 configure :development do
-  require 'rack-livereload'
-
-  use Rack::LiveReload
-
   set :show_exceptions, :after_handler
 end
 
@@ -29,6 +33,8 @@ end
 configure :test do
   set :raise_errors, false
 end
+
+set :static_cache_control, [:public, max_age: 300]
 
 helpers do
   def end_of_day_quote
@@ -69,12 +75,14 @@ helpers do
   end
 end
 
-options '*' do
-  200
-end
-
 get '/' do
-  erb :index
+  # FIXME: We should cache this in production.
+  parser = Redcarpet::Markdown.new(Redcarpet::Render::HTML,
+                                   disable_indented_code_blocks: true,
+                                   fenced_code_blocks: true)
+  content = parser.render(File.read('README.md'))
+
+  erb :index, locals: { content: content }
 end
 
 get '/(?:latest|current)', mustermann_opts: { type: :regexp } do
@@ -88,10 +96,17 @@ get '/(?<date>\d{4}-\d{2}-\d{2})', mustermann_opts: { type: :regexp } do
   json end_of_day_quote.formatted
 end
 
-get '/(?<start_date>\d{4}-\d{2}-\d{2})\.\.(?<end_date>\d{4}-\d{2}-\d{2})',
+get '/(?<start_date>\d{4}-\d{2}-\d{2})\.\.(?<end_date>\d{4}-\d{2}-\d{2})?',
     mustermann_opts: { type: :regexp } do
+  @params[:end_date] ||= Date.today.to_s
   etag interval_quote.cache_key
   json interval_quote.formatted
+end
+
+get '/currencies' do
+  currency_names = CurrencyNames.new
+  etag currency_names.cache_key
+  json currency_names.formatted
 end
 
 not_found do

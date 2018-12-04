@@ -1,6 +1,6 @@
 .*
 Dockerfile
 LICENSE
+assets
 spec
-*.md
 *.yml

@@ -7,6 +7,7 @@ class Query
 
   def amount
     return unless @params[:amount]
+
     @params[:amount].to_f
   end
 
@@ -15,7 +16,7 @@ class Query
   end
 
   def symbols
-    @params.values_at(:to, :symbols).compact.first&.split(',')
+    @params.values_at(:to, :symbols).compact.first&.upcase&.split(',')
   end
 
   def date

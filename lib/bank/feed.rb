@@ -25,14 +25,10 @@ module Bank
 
     def each
       document.locate('gesmes:Envelope/Cube/Cube').each do |day|
-        date = Date.parse(day['time'])
-        day.locate('Cube').each do |record|
-          yield(
-            date: date,
-            iso_code: record['currency'],
-            rate: Float(record['rate'])
-          )
-        end
+        yield(date: Date.parse(day['time']),
+              rates: day.nodes.each_with_object({}) do |currency, rates|
+                rates[currency[:currency]] = Float(currency[:rate])
+              end)
       end
     end
 
@@ -47,7 +43,7 @@ module Bank
     end
 
     def url
-      URI("http://www.ecb.europa.eu/stats/eurofxref/eurofxref-#{@scope}.xml")
+      URI("https://www.ecb.europa.eu/stats/eurofxref/eurofxref-#{@scope}.xml")
     end
   end
 end
